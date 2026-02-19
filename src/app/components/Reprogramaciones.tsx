@@ -500,8 +500,8 @@ export function Reprogramaciones() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <Card>
+      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 overflow-x-hidden">
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5 text-purple-600" /> Personal
@@ -542,7 +542,7 @@ export function Reprogramaciones() {
             {cronogramas.map((cronograma) => {
               const futuros = cronograma.rangos.filter((r) => (r.estado ?? 'activo') === 'activo' && puedeReprogramar(r.fechaInicio));
               return (
-                <Card key={cronograma.id} className="border-purple-200">
+                <Card key={cronograma.id} className="border-purple-200 min-w-0">
                   <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <div>
                       <CardTitle className="text-purple-900">Periodo {cronograma.anioVacacional}</CardTitle>
@@ -550,51 +550,53 @@ export function Reprogramaciones() {
                         {format(parseISO(cronograma.fechaInicioAnio), 'dd/MM/yyyy', { locale: es })} - {format(parseISO(cronograma.fechaFinAnio), 'dd/MM/yyyy', { locale: es })}
                       </CardDescription>
                     </div>
-                    <div className="flex items-center gap-3 text-sm text-purple-700">
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3 text-sm text-purple-700">
                       <span>Días flexibles usados: {cronograma.diasFlexiblesUsados}/{cronograma.diasFlexiblesDisponibles}</span>
                       <span>Días bloque usados: {cronograma.diasBloqueUsados}/{cronograma.diasBloqueDisponibles}</span>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {futuros.length > 0 ? (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-12">Sel.</TableHead>
-                            <TableHead>ID</TableHead>
-                            <TableHead>Fechas</TableHead>
-                            <TableHead>Días</TableHead>
-                            <TableHead>Tipo</TableHead>
-                            <TableHead>Estado</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {futuros.map((rango) => {
-                            const seleccionado = selectedRangeIds.includes(rango.id);
-                            return (
-                              <TableRow key={rango.id} className={seleccionado ? 'bg-purple-50' : ''}>
-                                <TableCell>
-                                  <Checkbox
-                                    checked={seleccionado}
-                                    onCheckedChange={(checked) => handleToggleRango(cronograma.id, rango, Boolean(checked))}
-                                  />
-                                </TableCell>
-                                <TableCell className="font-medium">{rango.id}</TableCell>
-                                <TableCell>{formatearRangoFechas(rango.fechaInicio, rango.fechaFin)}</TableCell>
-                                <TableCell>{rango.diasSolicitados}</TableCell>
-                                <TableCell>
-                                  <Badge variant={rango.tipo === 'flexible' ? 'default' : 'secondary'}>
-                                    {rango.tipo === 'flexible' ? 'Flexible' : 'Bloque'}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge className="bg-green-100 text-green-800">Activo</Badge>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                      <div className="w-full overflow-x-auto">
+                        <Table className="min-w-[700px]">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-12">Sel.</TableHead>
+                              <TableHead>ID</TableHead>
+                              <TableHead>Fechas</TableHead>
+                              <TableHead>Días</TableHead>
+                              <TableHead>Tipo</TableHead>
+                              <TableHead>Estado</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {futuros.map((rango) => {
+                              const seleccionado = selectedRangeIds.includes(rango.id);
+                              return (
+                                <TableRow key={rango.id} className={seleccionado ? 'bg-purple-50' : ''}>
+                                  <TableCell>
+                                    <Checkbox
+                                      checked={seleccionado}
+                                      onCheckedChange={(checked) => handleToggleRango(cronograma.id, rango, Boolean(checked))}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="font-medium">{rango.id}</TableCell>
+                                  <TableCell>{formatearRangoFechas(rango.fechaInicio, rango.fechaFin)}</TableCell>
+                                  <TableCell>{rango.diasSolicitados}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={rango.tipo === 'flexible' ? 'default' : 'secondary'}>
+                                      {rango.tipo === 'flexible' ? 'Flexible' : 'Bloque'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge className="bg-green-100 text-green-800">Activo</Badge>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
                     ) : (
                       <Alert>
                         <AlertDescription>No hay vacaciones futuras disponibles para reprogramar en este cronograma.</AlertDescription>
@@ -623,7 +625,8 @@ export function Reprogramaciones() {
               <div className="flex flex-wrap gap-2">
                 {selectedRanges.map((rango) => (
                   <Badge key={rango.id} className="bg-purple-100 text-purple-800">
-                    {rango.id} · {formatearRangoFechas(rango.fechaInicio, rango.fechaFin)}
+                    {rango.id} | <br/>
+                    {formatearRangoFechas(rango.fechaInicio, rango.fechaFin)}
                   </Badge>
                 ))}
               </div>

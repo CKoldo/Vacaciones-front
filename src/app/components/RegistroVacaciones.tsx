@@ -51,7 +51,6 @@ import {
 } from "date-fns";
 import { es } from "date-fns/locale";
 import { AdelantoVacaciones } from "@/app/components/AdelantoVacaciones";
-import { ReprogramacionVacaciones } from "@/app/components/ReprogramacionVacaciones";
 import { apiFetch } from "@/app/api";
 import { useAuth } from "@/app/context/AuthContext";
 import { generateUuid } from "@/app/utils/id";
@@ -456,7 +455,7 @@ export function RegistroVacaciones() {
 
   
 
-  // Función para manejar actualizaciones desde componentes hijos (AdelantoVacaciones, ReprogramacionVacaciones)
+  // Función para manejar actualizaciones desde componentes hijos (AdelantoVacaciones)
   const handleCronogramaActualizado = (
     cronogramaActualizado: CronogramaVacaciones,
   ) => {
@@ -864,13 +863,6 @@ export function RegistroVacaciones() {
                   cronograma={selectedCronograma}
                   onAdelantoAgregado={handleCronogramaActualizado}
                 />
-
-                {/* Reprogramación de Vacaciones */}
-                <ReprogramacionVacaciones
-                  cronograma={selectedCronograma}
-                  onReprogramacion={handleCronogramaActualizado}
-                />
-
                 <Card className="bg-indigo-50 border-indigo-200">
                   <CardHeader>
                     <CardTitle className="text-indigo-900 text-sm">

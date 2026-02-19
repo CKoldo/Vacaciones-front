@@ -289,7 +289,7 @@ export function RegistroPersonal() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 overflow-x-hidden">
         <input
           ref={fileExcelRef}
           type="file"
@@ -297,9 +297,9 @@ export function RegistroPersonal() {
           onChange={handleImportExcelPersonal}
           style={{ display: "none" }}
         />
-        <div className="grid lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           {/* Formulario de Registro */}
-          <Card>
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle>Nuevo Personal</CardTitle>
               <CardDescription>
@@ -382,7 +382,7 @@ export function RegistroPersonal() {
           </Card>
 
           {/* Lista de Personal */}
-          <Card>
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle>Personal Registrado</CardTitle>
               <CardDescription>
@@ -399,8 +399,8 @@ export function RegistroPersonal() {
                   <p>No hay personal registrado aún</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
+                <div className="w-full overflow-x-auto">
+                  <Table className="min-w-[640px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead>Nombre</TableHead>
