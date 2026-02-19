@@ -465,8 +465,6 @@ export function VisualizacionVacaciones() {
     toast.success('PDF exportado exitosamente');
   };
 
-  
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
@@ -492,8 +490,8 @@ export function VisualizacionVacaciones() {
               </div>
             </div>
 
-            {/* Botones de exportación global */}
-            <div className="flex gap-2">
+             {/* Botones de exportación global */}
+            <div className="flex flex-wrap gap-2">
               <Button onClick={exportarExcelTodo} variant="outline" className="gap-2">
                 <FileSpreadsheet className="w-4 h-4" />
                 Excel Todo
@@ -534,6 +532,7 @@ export function VisualizacionVacaciones() {
               )}
             </div>
           </CardHeader>
+          
           <CardContent>
             <Select value={selectedPersonalId} onValueChange={setSelectedPersonalId}>
               <SelectTrigger className="w-full md:w-96">

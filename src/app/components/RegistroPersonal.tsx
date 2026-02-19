@@ -242,6 +242,7 @@ export function RegistroPersonal() {
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
+
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-600 rounded-lg">
                 <UserPlus className="w-6 h-6 text-white" />
@@ -256,14 +257,14 @@ export function RegistroPersonal() {
               </div>
             </div>
 
-            <div className="ml-auto flex gap-2">
+            <div className="ml-auto flex gap-2 flex-wrap">
               <Button
                 onClick={exportarPersonalJSON}
                 variant="outline"
                 className="gap-2"
               >
                 <Download className="w-4 h-4" />
-                Exportar Vacaciones (JSON)
+                Exp. (JSON)
               </Button>
 
               <Button
@@ -272,7 +273,7 @@ export function RegistroPersonal() {
                 className="gap-2"
               >
                 <Download className="w-4 h-4" />
-                Importar Personal (Excel)
+                Imp. Per. (Excel)
               </Button>
 
               {/*TODO: Agregar confirmación antes de limpiar datos
