@@ -127,20 +127,6 @@ export function RegistroPersonal() {
     }
   }
 
-  /*
-  const handleDelete = (id: string) => {
-    try {
-      // No existe endpoint DELETE en backend básico; simular eliminación local y sugerir backend
-      apiFetch(`/api/personal/${id}`, { method: 'DELETE' });
-      const updatedPersonal = personal.filter((p) => p.id !== id);
-      setPersonal(updatedPersonal);
-      toast.success('Personal eliminado (local)');
-    } catch {
-      toast.error('Error eliminando');
-    }
-  };
-  */
-
   // Exportar/Importar/Limpiar
   const exportarPersonalJSON = () => {
     if (!personal.length) {
@@ -155,23 +141,6 @@ export function RegistroPersonal() {
       `SISTEMA_DIGC_Personal_${new Date().toISOString().split("T")[0]}.json`,
     );
     toast.success("Personal exportado a JSON");
-  };
-
-  const exportarVacacionesJSON = () => {
-    const raw = localStorage.getItem("cronogramas");
-    const cronogramas = raw ? JSON.parse(raw) : [];
-    if (!cronogramas.length) {
-      toast.error("No hay vacaciones para exportar");
-      return;
-    }
-    const blob = new Blob([JSON.stringify(cronogramas, null, 2)], {
-      type: "application/json",
-    });
-    saveAs(
-      blob,
-      `SISTEMA_DIGC_Vacaciones_${new Date().toISOString().split("T")[0]}.json`,
-    );
-    toast.success("Vacaciones exportadas a JSON");
   };
 
   const handleImportExcelPersonal = (
@@ -237,13 +206,20 @@ export function RegistroPersonal() {
     reader.readAsArrayBuffer(file);
     e.currentTarget.value = "";
   };
-
-  const limpiarDatos = () => {
-    localStorage.removeItem("personal");
-    localStorage.removeItem("cronogramas");
-    setPersonal([]);
-    toast.success("Datos de personal y vacaciones limpiados");
+  
+  /*
+  const limpiarDatos = async () => {
+    try {
+      ocalStorage.removeItem("personal");
+      localStorage.removeItem("cronogramas");
+      await apiFetch("/api/personal", { method: "DELETE" });
+      setPersonal([]);
+      toast.success("Datos de personal limpiados");
+    } catch (err) {
+      toast.error("Error limpiando datos");
+    }
   };
+  */
 
   const formatearFecha = (fecha: string) => {
     try {
@@ -279,6 +255,7 @@ export function RegistroPersonal() {
                 </p>
               </div>
             </div>
+
             <div className="ml-auto flex gap-2">
               <Button
                 onClick={exportarPersonalJSON}
@@ -286,16 +263,9 @@ export function RegistroPersonal() {
                 className="gap-2"
               >
                 <Download className="w-4 h-4" />
-                Exportar Personal (JSON)
-              </Button>
-              <Button
-                onClick={exportarVacacionesJSON}
-                variant="outline"
-                className="gap-2"
-              >
-                <Download className="w-4 h-4" />
                 Exportar Vacaciones (JSON)
               </Button>
+
               <Button
                 onClick={() => fileExcelRef.current?.click()}
                 variant="outline"
@@ -304,13 +274,14 @@ export function RegistroPersonal() {
                 <Download className="w-4 h-4" />
                 Importar Personal (Excel)
               </Button>
+
+              {/*TODO: Agregar confirmación antes de limpiar datos
               <Button
                 onClick={limpiarDatos}
                 variant="destructive"
-                className="gap-2"
-              >
-                Limpiar Datos
-              </Button>
+                className="gap-2">Limpiar Datos
+              </Button>*/}
+
             </div>
           </div>
         </div>
