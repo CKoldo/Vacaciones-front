@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/app/context/AuthContext';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
-import { CalendarDays, Users, CalendarPlus, LogOut, Calendar, FileText, Settings, RefreshCcw } from 'lucide-react';
+import { CalendarDays, Users, CalendarPlus, LogOut, Calendar, FileText, Settings, RefreshCcw, PencilRuler } from 'lucide-react';
 
 export function Home() {
   const { user, logout } = useAuth();
@@ -144,6 +144,25 @@ export function Home() {
             <CardContent>
               <Button className="w-full" onClick={() => navigate('/administracion')}>
                 Ir a Administración
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/edicion-cronogramas')}>
+            <CardHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-3 bg-amber-100 rounded-lg">
+                  <PencilRuler className="w-6 h-6 text-amber-600" />
+                </div>
+                <CardTitle>Editar Cronogramas</CardTitle>
+              </div>
+              <CardDescription>
+                Ajuste el inicio de un periodo vacacional y recalcule en cascada los periodos posteriores
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full" onClick={() => navigate('/edicion-cronogramas')}>
+                Abrir edición de cronogramas
               </Button>
             </CardContent>
           </Card>

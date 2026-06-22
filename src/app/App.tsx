@@ -8,6 +8,7 @@ import { RegistroVacaciones } from '@/app/components/RegistroVacaciones';
 import { VisualizacionVacaciones } from '@/app/components/VisualizacionVacaciones';
 import { PlantillaDeclaracion } from '@/app/components/PlantillaDeclaracion';
 import { Administracion } from '@/app/components/Administracion';
+import { EdicionCronogramas } from '@/app/components/EdicionCronogramas';
 import { Reprogramaciones } from '@/app/components/Reprogramaciones';
 import { Toaster } from '@/app/components/ui/sonner';
 
@@ -63,6 +64,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Administracion />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/edicion-cronogramas"
+            element={
+              <ProtectedRoute>
+                <EdicionCronogramas />
               </ProtectedRoute>
             }
           />

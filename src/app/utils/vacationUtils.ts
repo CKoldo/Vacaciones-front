@@ -37,13 +37,127 @@ export function calcularPeriodoVacacional(fechaIngreso: string): {
 } {
   const ingreso = parseISO(fechaIngreso);
   const inicioVacaciones = addYears(ingreso, 1); // después de 1 año
+  return construirPeriodoVacacional(inicioVacaciones);
+}
+
+function construirPeriodoVacacional(inicioVacaciones: Date): {
+  anioVacacional: string;
+  fechaInicio: string;
+  fechaFin: string;
+} {
   const finVacaciones = addYears(inicioVacaciones, 1);
-  
+
   return {
     anioVacacional: `${format(inicioVacaciones, 'yyyy', { locale: es })}-${format(finVacaciones, 'yyyy', { locale: es })}`,
     fechaInicio: inicioVacaciones.toISOString(),
     fechaFin: finVacaciones.toISOString(),
   };
+}
+
+function crearCronogramaVacacional(
+  personalId: string,
+  periodo: { anioVacacional: string; fechaInicio: string; fechaFin: string },
+): CronogramaVacaciones {
+  return {
+    id: generateUuid(),
+    personalId,
+    anioVacacional: periodo.anioVacacional,
+    fechaInicioAnio: periodo.fechaInicio,
+    fechaFinAnio: periodo.fechaFin,
+    diasTotales: 30,
+    diasAdelanto: 0,
+    diasFlexiblesDisponibles: 7,
+    diasFlexiblesUsados: 0,
+    diasBloqueDisponibles: 23,
+    diasBloqueUsados: 0,
+    rangos: [],
+    estado: 'pendiente',
+  };
+}
+
+export function generarCronogramasVacacionales(
+  fechaIngreso: string,
+  personalId: string,
+  referencia: Date = new Date(),
+): CronogramaVacaciones[] {
+  const ingreso = parseISO(fechaIngreso);
+  if (Number.isNaN(ingreso.getTime())) return [];
+
+  const cronogramas: CronogramaVacaciones[] = [];
+  const limite = startOfDay(referencia);
+  let inicioVacaciones = addYears(ingreso, 1);
+
+  while (startOfDay(inicioVacaciones) <= limite) {
+    const periodo = construirPeriodoVacacional(inicioVacaciones);
+    cronogramas.push(crearCronogramaVacacional(personalId, periodo));
+    inicioVacaciones = parseISO(periodo.fechaFin);
+  }
+
+  return cronogramas;
+}
+
+export function obtenerCronogramasFaltantes(
+  fechaIngreso: string,
+  personalId: string,
+  cronogramasExistentes: CronogramaVacaciones[],
+  referencia: Date = new Date(),
+): CronogramaVacaciones[] {
+  const aniosExistentes = new Set(cronogramasExistentes.map((cronograma) => cronograma.anioVacacional));
+
+  return generarCronogramasVacacionales(fechaIngreso, personalId, referencia).filter(
+    (cronograma) => !aniosExistentes.has(cronograma.anioVacacional),
+  );
+}
+
+export function crearSiguienteCronogramaAnticipado(
+  fechaIngreso: string,
+  personalId: string,
+  cronogramasExistentes: CronogramaVacaciones[],
+): CronogramaVacaciones | null {
+  const ingreso = parseISO(fechaIngreso);
+  if (Number.isNaN(ingreso.getTime())) return null;
+
+  const ultimoCronograma = [...cronogramasExistentes].sort(
+    (a, b) => parseISO(a.fechaInicioAnio).getTime() - parseISO(b.fechaInicioAnio).getTime(),
+  ).at(-1);
+
+  const siguienteInicio = ultimoCronograma
+    ? parseISO(ultimoCronograma.fechaFinAnio)
+    : addYears(ingreso, 1);
+
+  if (Number.isNaN(siguienteInicio.getTime())) return null;
+
+  const siguienteCronograma = crearCronogramaVacacional(
+    personalId,
+    construirPeriodoVacacional(siguienteInicio),
+  );
+
+  return cronogramasExistentes.some(
+    (cronograma) => cronograma.anioVacacional === siguienteCronograma.anioVacacional,
+  )
+    ? null
+    : siguienteCronograma;
+}
+
+export function obtenerCronogramaPredeterminado(
+  cronogramas: CronogramaVacaciones[],
+  referencia: Date = new Date(),
+): CronogramaVacaciones | null {
+  if (!cronogramas.length) return null;
+
+  const limite = startOfDay(referencia).getTime();
+  const ordenados = [...cronogramas].sort(
+    (a, b) =>
+      parseISO(b.fechaInicioAnio).getTime() - parseISO(a.fechaInicioAnio).getTime(),
+  );
+
+  return (
+    ordenados.find((cronograma) => {
+      const inicio = startOfDay(parseISO(cronograma.fechaInicioAnio)).getTime();
+      const fin = startOfDay(parseISO(cronograma.fechaFinAnio)).getTime();
+      return inicio <= limite && limite <= fin;
+    }) ?? ordenados[0]
+  );
 }
 
 /**
@@ -315,4 +429,81 @@ export function buscarSolapamientos(
   }
 
   return null;
+}
+
+export interface CronogramaFueraDePeriodo {
+  cronogramaId: string;
+  anioVacacional: string;
+  rangoId: string;
+  fechaInicio: string;
+  fechaFin: string;
+}
+
+function construirAnioVacacional(fechaInicio: Date, fechaFin: Date): string {
+  return `${format(fechaInicio, 'yyyy', { locale: es })}-${format(fechaFin, 'yyyy', { locale: es })}`;
+}
+
+export function recalcularCronogramasEnCascada(
+  cronogramas: CronogramaVacaciones[],
+  cronogramaBaseId: string,
+  nuevaFechaInicio: string,
+): CronogramaVacaciones[] {
+  const inicioBase = startOfDay(parseISO(nuevaFechaInicio));
+  if (Number.isNaN(inicioBase.getTime())) {
+    throw new Error('La nueva fecha de inicio no es válida');
+  }
+
+  const ordenados = [...cronogramas].sort(
+    (a, b) => parseISO(a.fechaInicioAnio).getTime() - parseISO(b.fechaInicioAnio).getTime(),
+  );
+  const indiceBase = ordenados.findIndex((cronograma) => cronograma.id === cronogramaBaseId);
+
+  if (indiceBase === -1) {
+    throw new Error('No se encontró el cronograma base a editar');
+  }
+
+  let siguienteInicio = inicioBase;
+
+  return ordenados.map((cronograma, indice) => {
+    if (indice < indiceBase) return cronograma;
+
+    const siguienteFin = addYears(siguienteInicio, 1);
+    const cronogramaActualizado: CronogramaVacaciones = {
+      ...cronograma,
+      anioVacacional: construirAnioVacacional(siguienteInicio, siguienteFin),
+      fechaInicioAnio: siguienteInicio.toISOString(),
+      fechaFinAnio: siguienteFin.toISOString(),
+    };
+
+    siguienteInicio = siguienteFin;
+    return cronogramaActualizado;
+  });
+}
+
+export function validarRangosEnCronogramas(
+  cronogramas: CronogramaVacaciones[],
+): CronogramaFueraDePeriodo[] {
+  const inconsistencias: CronogramaFueraDePeriodo[] = [];
+
+  for (const cronograma of cronogramas) {
+    const inicioPeriodo = startOfDay(parseISO(cronograma.fechaInicioAnio)).getTime();
+    const finPeriodo = startOfDay(parseISO(cronograma.fechaFinAnio)).getTime();
+
+    for (const rango of cronograma.rangos) {
+      const inicioRango = startOfDay(parseISO(rango.fechaInicio)).getTime();
+      const finRango = startOfDay(parseISO(rango.fechaFin)).getTime();
+
+      if (inicioRango < inicioPeriodo || finRango > finPeriodo) {
+        inconsistencias.push({
+          cronogramaId: cronograma.id,
+          anioVacacional: cronograma.anioVacacional,
+          rangoId: rango.id,
+          fechaInicio: rango.fechaInicio,
+          fechaFin: rango.fechaFin,
+        });
+      }
+    }
+  }
+
+  return inconsistencias;
 }

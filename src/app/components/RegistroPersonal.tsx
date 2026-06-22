@@ -34,17 +34,21 @@ import { useAuth } from "@/app/context/AuthContext";
 import { format, parseISO } from "date-fns";
 import { el, es } from "date-fns/locale";
 import { generateUuid } from "@/app/utils/id";
+import { generarCronogramasVacacionales } from "@/app/utils/vacationUtils";
 
 export function RegistroPersonal() {
   const navigate = useNavigate();
   const [personal, setPersonal] = useState<Personal[]>([]);
   const fileExcelRef = useRef<HTMLInputElement | null>(null);
   const [formData, setFormData] = useState({
+    dni: "",
     nombre: "",
     apellido: "",
-    fechaIngreso: "",
+    regimen_laboral: "",
+    ue: "",
+    dependencia: "",
     email: "",
-    puesto: "",
+    fechaIngreso: "",
   });
 
   const { isAuthenticated } = useAuth();
@@ -68,11 +72,14 @@ export function RegistroPersonal() {
     e.preventDefault();
 
     if (
+      !formData.dni ||
       !formData.nombre ||
       !formData.apellido ||
-      !formData.fechaIngreso ||
+      !formData.regimen_laboral ||
+      !formData.ue ||
+      !formData.dependencia ||
       !formData.email ||
-      !formData.puesto
+      !formData.fechaIngreso
     ) {
       toast.error("Por favor, complete todos los campos");
       return;
@@ -82,32 +89,55 @@ export function RegistroPersonal() {
       id: generateUuid(),
       ...formData,
     };
+    const payload = {
+      id: nuevoPersonal.id,
+      dni: nuevoPersonal.dni,
+      nombre: nuevoPersonal.nombre,
+      apellido: nuevoPersonal.apellido,
+      regimen_laboral: nuevoPersonal.regimen_laboral,
+      ue: nuevoPersonal.ue,
+      dependencia: nuevoPersonal.dependencia,
+      email: nuevoPersonal.email,
+      fechaIngreso: nuevoPersonal.fechaIngreso,
+    };
     // Guardar personal en servidor
     async function guardarPersonal() {
       try {
+        console.log("Payload registro personal:", payload);
         await apiFetch("/api/personal", {
           method: "POST",
-          body: JSON.stringify({
-            id: nuevoPersonal.id,
-            nombre: nuevoPersonal.nombre,
-            apellido: nuevoPersonal.apellido,
-            email: nuevoPersonal.email,
-            puesto: nuevoPersonal.puesto,
-            fechaIngreso: nuevoPersonal.fechaIngreso,
-          }),
+          body: JSON.stringify(payload),
         });
+
+        const cronogramasIniciales = generarCronogramasVacacionales(
+          nuevoPersonal.fechaIngreso,
+          nuevoPersonal.id,
+        );
+
+        for (const cronograma of cronogramasIniciales) {
+          await apiFetch("/api/schedules", {
+            method: "POST",
+            body: JSON.stringify(cronograma),
+          });
+        }
+
         const updatedPersonal = [...personal, nuevoPersonal];
         setPersonal(updatedPersonal);
         toast.success(
-          `Personal ${formData.nombre} ${formData.apellido} registrado exitosamente`,
+          cronogramasIniciales.length > 0
+            ? `Personal ${formData.nombre} ${formData.apellido} registrado. Se crearon ${cronogramasIniciales.length} cronogramas.`
+            : `Personal ${formData.nombre} ${formData.apellido} registrado exitosamente`,
         );
         // Limpiar formulario
         setFormData({
+          dni: "",
           nombre: "",
           apellido: "",
-          fechaIngreso: "",
+          regimen_laboral: "",
+          ue: "",
+          dependencia: "",
           email: "",
-          puesto: "",
+          fechaIngreso: "",
         });
       } catch (err) {
         toast.error("Error al guardar en servidor");
@@ -190,10 +220,32 @@ export function RegistroPersonal() {
             "Fecha de Ingreso",
             "fecha de ingreso",
           ]);
+          const dni = get(["dni", "DNI"]);
+          const regimen_laboral = get([
+            "regimen_laboral",
+            "RegimenLaboral",
+            "Regimen Laboral",
+            "régimen laboral",
+          ]);
+          const ue = get(["ue", "UE", "u.e.", "U.E."]);
+          const dependencia = get([
+            "dependencia",
+            "Dependencia",
+            "DEPENDENCIA",
+          ]);
           const email = get(["email", "Email", "EMAIL"]);
-          const puesto = get(["puesto", "Puesto", "cargo", "Cargo"]);
           const id = get(["id", "ID"]) || generateUuid();
-          return { id, nombre, apellido, fechaIngreso, email, puesto };
+          return {
+            id,
+            dni,
+            nombre,
+            apellido,
+            regimen_laboral,
+            ue,
+            dependencia,
+            email,
+            fechaIngreso,
+          };
         });
 
         localStorage.setItem("personal", JSON.stringify(nuevos));
@@ -310,6 +362,17 @@ export function RegistroPersonal() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
+                    <Label htmlFor="dni">DNI</Label>
+                    <Input
+                      id="dni"
+                      placeholder="Ingrese el DNI"
+                      value={formData.dni}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dni: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="nombre">Nombre</Label>
                     <Input
                       id="nombre"
@@ -333,6 +396,49 @@ export function RegistroPersonal() {
                   </div>
                 </div>
 
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="regimen_laboral">Régimen Laboral</Label>
+                    <Input
+                      id="regimen_laboral"
+                      placeholder="Ingrese el régimen laboral"
+                      value={formData.regimen_laboral}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          regimen_laboral: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ue">UE</Label>
+                    <Input
+                      id="ue"
+                      placeholder="Ingrese la UE"
+                      value={formData.ue}
+                      onChange={(e) =>
+                        setFormData({ ...formData, ue: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="dependencia">Dependencia</Label>
+                  <Input
+                    id="dependencia"
+                    placeholder="Ingrese la dependencia"
+                    value={formData.dependencia}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        dependencia: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
@@ -342,18 +448,6 @@ export function RegistroPersonal() {
                     value={formData.email}
                     onChange={(e) =>
                       setFormData({ ...formData, email: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="puesto">Puesto</Label>
-                  <Input
-                    id="puesto"
-                    placeholder="Ej: Desarrollador, Gerente, etc."
-                    value={formData.puesto}
-                    onChange={(e) =>
-                      setFormData({ ...formData, puesto: e.target.value })
                     }
                   />
                 </div>
@@ -400,12 +494,15 @@ export function RegistroPersonal() {
                 </div>
               ) : (
                 <div className="w-full overflow-x-auto">
-                  <Table className="min-w-[640px]">
+                  <Table className="min-w-[960px]">
                     <TableHeader>
                       <TableRow>
+                        <TableHead>DNI</TableHead>
                         <TableHead>Nombre</TableHead>
+                        <TableHead>Régimen</TableHead>
+                        <TableHead>UE</TableHead>
+                        <TableHead>Dependencia</TableHead>
                         <TableHead>Email</TableHead>
-                        <TableHead>Puesto</TableHead>
                         <TableHead>Ingreso</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
                       </TableRow>
@@ -413,11 +510,14 @@ export function RegistroPersonal() {
                     <TableBody>
                       {personal.map((p) => (
                         <TableRow key={p.id}>
+                          <TableCell>{p.dni}</TableCell>
                           <TableCell className="font-medium">
                             {p.nombre} {p.apellido}
                           </TableCell>
+                          <TableCell>{p.regimen_laboral}</TableCell>
+                          <TableCell>{p.ue}</TableCell>
+                          <TableCell>{p.dependencia}</TableCell>
                           <TableCell>{p.email}</TableCell>
-                          <TableCell>{p.puesto}</TableCell>
                           <TableCell>
                             {formatearFecha(p.fechaIngreso)}
                           </TableCell>

@@ -93,7 +93,10 @@ export function VisualizacionVacaciones() {
     data.push(['REPORTE DE VACACIONES']);
     data.push([]);
     data.push(['Empleado:', `${selectedPersonal.nombre} ${selectedPersonal.apellido}`]);
-    data.push(['Puesto:', selectedPersonal.puesto]);
+    data.push(['DNI:', selectedPersonal.dni]);
+    data.push(['Régimen Laboral:', selectedPersonal.regimen_laboral]);
+    data.push(['UE:', selectedPersonal.ue]);
+    data.push(['Dependencia:', selectedPersonal.dependencia]);
     data.push(['Email:', selectedPersonal.email]);
     data.push(['Fecha de Ingreso:', format(parseISO(selectedPersonal.fechaIngreso), 'dd/MM/yyyy', { locale: es })]);
     data.push([]);
@@ -201,7 +204,13 @@ export function VisualizacionVacaciones() {
     doc.setFontSize(12);
     doc.text(`Empleado: ${selectedPersonal.nombre} ${selectedPersonal.apellido}`, 20, yPos);
     yPos += 7;
-    doc.text(`Puesto: ${selectedPersonal.puesto}`, 20, yPos);
+    doc.text(`DNI: ${selectedPersonal.dni}`, 20, yPos);
+    yPos += 7;
+    doc.text(`Régimen: ${selectedPersonal.regimen_laboral}`, 20, yPos);
+    yPos += 7;
+    doc.text(`UE: ${selectedPersonal.ue}`, 20, yPos);
+    yPos += 7;
+    doc.text(`Dependencia: ${selectedPersonal.dependencia}`, 20, yPos);
     yPos += 7;
     doc.text(`Email: ${selectedPersonal.email}`, 20, yPos);
     yPos += 7;
@@ -384,7 +393,7 @@ export function VisualizacionVacaciones() {
       doc.text(`${empleado.nombre} ${empleado.apellido}`, 20, yPos);
       yPos += 6;
       doc.setFontSize(9);
-      doc.text(`${empleado.puesto} - ${empleado.email}`, 20, yPos);
+      doc.text(`DNI: ${empleado.dni} - ${empleado.email}`, 20, yPos);
       yPos += 8;
 
       if (empleadoCronogramas.length > 0) {
@@ -541,7 +550,7 @@ export function VisualizacionVacaciones() {
               <SelectContent>
                 {personal.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.nombre} {p.apellido} - {p.puesto}
+                    {p.nombre} {p.apellido} - DNI: {p.dni}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -564,8 +573,20 @@ export function VisualizacionVacaciones() {
                     <p className="font-medium">{selectedPersonal.nombre} {selectedPersonal.apellido}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Puesto</p>
-                    <p className="font-medium">{selectedPersonal.puesto}</p>
+                    <p className="text-sm text-gray-500">DNI</p>
+                    <p className="font-medium">{selectedPersonal.dni}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Régimen Laboral</p>
+                    <p className="font-medium">{selectedPersonal.regimen_laboral}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">UE</p>
+                    <p className="font-medium">{selectedPersonal.ue}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Dependencia</p>
+                    <p className="font-medium">{selectedPersonal.dependencia}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Email</p>

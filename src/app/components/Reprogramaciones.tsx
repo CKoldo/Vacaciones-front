@@ -517,7 +517,7 @@ export function Reprogramaciones() {
                 <SelectContent>
                   {personal.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.nombre} {p.apellido} - {p.puesto}
+                      {p.nombre} {p.apellido} - DNI: {p.dni}
                     </SelectItem>
                   ))}
                 </SelectContent>

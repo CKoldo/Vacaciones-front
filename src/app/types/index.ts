@@ -7,11 +7,14 @@ export interface User {
 
 export interface Personal {
   id: string;
+  dni: string;
   nombre: string;
   apellido: string;
-  fechaIngreso: string; // ISO date string
+  regimen_laboral: string;
+  ue: string;
+  dependencia: string;
   email: string;
-  puesto: string;
+  fechaIngreso: string; // ISO date string
 }
 
 export interface RangoVacaciones {

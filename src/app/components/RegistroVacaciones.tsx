@@ -34,12 +34,13 @@ import type {
   RangoVacaciones,
 } from "@/app/types";
 import {
-  calcularPeriodoVacacional,
   validarRangoVacaciones,
   calcularDiasDisponibles,
   formatearRangoFechas,
   calcularDiasConFinDeSemana,
   esViernes,
+  generarCronogramasVacacionales,
+  obtenerCronogramaPredeterminado,
 } from "@/app/utils/vacationUtils";
 import { generarIdVacacion } from "@/app/utils/vacationUtils";
 import {
@@ -48,9 +49,10 @@ import {
   differenceInDays,
   addDays,
   isFriday,
+  isBefore,
+  startOfToday,
 } from "date-fns";
 import { es } from "date-fns/locale";
-import { AdelantoVacaciones } from "@/app/components/AdelantoVacaciones";
 import { apiFetch } from "@/app/api";
 import { useAuth } from "@/app/context/AuthContext";
 import { generateUuid } from "@/app/utils/id";
@@ -98,51 +100,88 @@ export function RegistroVacaciones() {
     fetchCronogramas();
   }, []);
 
-    // Cuando se selecciona un personal, buscar cronograma asociado o crear uno nuevo si no existe
+    // Cuando se selecciona un personal, completar cronogramas faltantes y elegir el periodo vigente o más reciente
   useEffect(() => {
-    const fetchOrCreateCronograma = async () => {
+    const syncCronogramas = async () => {
       if (selectedPersonalId) {
         const empleado = personal.find((p) => p.id === selectedPersonalId);
         if (empleado) {
-          let cronograma = cronogramas.find((c) => c.personalId === selectedPersonalId);
-          if (!cronograma) {
-            // Crear nuevo cronograma en backend
-            const periodo = calcularPeriodoVacacional(empleado.fechaIngreso);
-            const newCronograma = {
-              id: generateUuid(),
-              personalId: empleado.id,
-              anioVacacional: periodo.anioVacacional,
-              fechaInicioAnio: periodo.fechaInicio,
-              fechaFinAnio: periodo.fechaFin,
-              diasTotales: 30,
-              diasAdelanto: 0,
-              diasFlexiblesDisponibles: 7,
-              diasFlexiblesUsados: 0,
-              diasBloqueDisponibles: 23,
-              diasBloqueUsados: 0,
-              rangos: [],
-              estado: 'pendiente',
-            };
+          const cronogramasEmpleado = cronogramas.filter(
+            (c) => c.personalId === selectedPersonalId,
+          );
+          const cronogramasEsperados = generarCronogramasVacacionales(
+            empleado.fechaIngreso,
+            empleado.id,
+          );
+          const cronogramasFaltantes = cronogramasEsperados.filter(
+            (cronogramaEsperado) =>
+              !cronogramasEmpleado.some(
+                (cronogramaExistente) =>
+                  cronogramaExistente.anioVacacional ===
+                  cronogramaEsperado.anioVacacional,
+              ),
+          );
+
+          let cronogramasCompletos = cronogramasEmpleado;
+
+          if (cronogramasFaltantes.length > 0) {
             try {
-              await apiFetch('/api/schedules', { method: 'POST', body: JSON.stringify(newCronograma) });
-              cronograma = newCronograma;
-              const newCronogramas = [...cronogramas, cronograma];
-              setCronogramas(newCronogramas);
+              for (const cronograma of cronogramasFaltantes) {
+                await apiFetch('/api/schedules', {
+                  method: 'POST',
+                  body: JSON.stringify(cronograma),
+                });
+              }
+              cronogramasCompletos = [
+                ...cronogramasEmpleado,
+                ...cronogramasFaltantes,
+              ];
+              setCronogramas((prev) => [...prev, ...cronogramasFaltantes]);
             } catch (err) {
-              toast.error('Error creando cronograma en servidor');
-              // fallback local
-              cronograma = newCronograma;
-              const newCronogramas = [...cronogramas, cronograma];
-              setCronogramas(newCronogramas);
+              toast.error('Error creando cronogramas faltantes en servidor');
+              return;
             }
           }
-          setSelectedCronograma(cronograma);
+
+          const cronogramaPredeterminado = obtenerCronogramaPredeterminado(
+            cronogramasCompletos,
+          );
+
+          if (!cronogramaPredeterminado) {
+            setSelectedCronograma(null);
+            return;
+          }
+
+          const inicioCronogramaPredeterminado = parseISO(
+            cronogramaPredeterminado.fechaInicioAnio,
+          ).getTime();
+          const cronogramasElegibles = cronogramasCompletos
+            .filter(
+              (cronograma) =>
+                parseISO(cronograma.fechaInicioAnio).getTime() >=
+                inicioCronogramaPredeterminado,
+            )
+            .sort(
+              (a, b) =>
+                parseISO(a.fechaInicioAnio).getTime() -
+                parseISO(b.fechaInicioAnio).getTime(),
+            );
+
+          const cronogramaSeleccionadoActual = selectedCronograma
+            ? cronogramasElegibles.find(
+                (cronograma) => cronograma.id === selectedCronograma.id,
+              )
+            : null;
+
+          setSelectedCronograma(
+            cronogramaSeleccionadoActual ?? cronogramaPredeterminado,
+          );
         }
       } else {
         setSelectedCronograma(null);
       }
     };
-    fetchOrCreateCronograma();
+    syncCronogramas();
 
   }, [selectedPersonalId, personal, cronogramas]);
 
@@ -179,6 +218,12 @@ export function RegistroVacaciones() {
     return () => {
       cancelled = true;
     };
+  }, [selectedCronograma?.id]);
+
+  useEffect(() => {
+    setFechaInicio("");
+    setFechaFin("");
+    setValidationResult(null);
   }, [selectedCronograma?.id]);
 
   // Cuando se selecciona un viernes como fecha de inicio, automáticamente establecer domingo como fecha fin
@@ -348,12 +393,43 @@ export function RegistroVacaciones() {
     setValidationResult(null);
   };
 
+  const rangoEstaVinculadoAReprogramacion = (
+    rango: RangoVacaciones,
+    rangos: RangoVacaciones[],
+  ) => {
+    if (rango.estado === "reprogramado" || Boolean(rango.reprogramadoPor)) {
+      return true;
+    }
+
+    return rangos.some(
+      (otroRango) =>
+        otroRango.id !== rango.id && otroRango.reprogramadoPor === rango.id,
+    );
+  };
+
   // Eliminar un rango de vacaciones del cronograma y eliminar en VacationRanges y actualizar en VacationSchedules
   const handleEliminarRango = async (rangoId: string) => {
     if (!selectedCronograma) return;
 
     const rango = selectedCronograma.rangos.find((r) => r.id === rangoId);
     if (!rango) return;
+
+    const hoy = startOfToday();
+    const inicioRango = parseISO(rango.fechaInicio);
+    const rangoVinculadoAReprogramacion = rangoEstaVinculadoAReprogramacion(
+      rango,
+      selectedCronograma.rangos,
+    );
+
+    if (!isBefore(hoy, inicioRango)) {
+      toast.error("No se puede eliminar una vacación que ya inició o ya fue usada");
+      return;
+    }
+
+    if (rangoVinculadoAReprogramacion) {
+      toast.error("No se puede eliminar una vacación vinculada a una reprogramación");
+      return;
+    }
 
     try {
       await apiFetch(`/api/ranges/${rangoId}`, {
@@ -476,6 +552,23 @@ export function RegistroVacaciones() {
   const empleadoSeleccionado = personal.find(
     (p) => p.id === selectedPersonalId,
   );
+  const cronogramasEmpleado = cronogramas
+    .filter((cronograma) => cronograma.personalId === selectedPersonalId)
+    .sort(
+      (a, b) =>
+        parseISO(a.fechaInicioAnio).getTime() -
+        parseISO(b.fechaInicioAnio).getTime(),
+    );
+  const cronogramaPredeterminado = obtenerCronogramaPredeterminado(
+    cronogramasEmpleado,
+  );
+  const cronogramasElegibles = cronogramaPredeterminado
+    ? cronogramasEmpleado.filter(
+        (cronograma) =>
+          parseISO(cronograma.fechaInicioAnio).getTime() >=
+          parseISO(cronogramaPredeterminado.fechaInicioAnio).getTime(),
+      )
+    : [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -532,12 +625,43 @@ export function RegistroVacaciones() {
                     <SelectContent>
                       {personal.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
-                          {p.nombre} {p.apellido} - {p.puesto}
+                          {p.nombre} {p.apellido} - DNI: {p.dni}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+
+                {cronogramasElegibles.length > 0 && selectedCronograma && (
+                  <div className="space-y-2">
+                    <Label htmlFor="cronograma">Cronograma a usar</Label>
+                    <Select
+                      value={selectedCronograma.id}
+                      onValueChange={(cronogramaId) => {
+                        const cronograma = cronogramasElegibles.find(
+                          (item) => item.id === cronogramaId,
+                        );
+                        if (cronograma) {
+                          setSelectedCronograma(cronograma);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione un cronograma" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cronogramasElegibles.map((cronograma) => (
+                          <SelectItem key={cronograma.id} value={cronograma.id}>
+                            {cronograma.anioVacacional}
+                            {cronograma.id === cronogramaPredeterminado?.id
+                              ? " (por defecto)"
+                              : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 {empleadoSeleccionado && selectedCronograma && (
                   <Alert>
@@ -681,6 +805,15 @@ export function RegistroVacaciones() {
                     {selectedCronograma.rangos
                       .filter((r) => (r.estado ?? "activo") === "activo")
                       .map((rango) => {
+                        const rangoYaIniciado = !isBefore(
+                          startOfToday(),
+                          parseISO(rango.fechaInicio),
+                        );
+                        const rangoVinculadoAReprogramacion =
+                          rangoEstaVinculadoAReprogramacion(
+                            rango,
+                            selectedCronograma.rangos,
+                          );
                         const linkedOriginals =
                           rango.reprogramadoDesde &&
                             rango.reprogramadoDesde.length > 0
@@ -773,11 +906,14 @@ export function RegistroVacaciones() {
                               size="icon"
                               onClick={() => handleEliminarRango(rango.id)}
                               className={
-                                rango.estado === "reprogramado"
+                                rangoVinculadoAReprogramacion || rangoYaIniciado
                                   ? "text-gray-400 cursor-not-allowed"
                                   : "text-red-600 hover:text-red-700 hover:bg-red-50"
                               }
-                              disabled={rango.estado === "reprogramado"}
+                              disabled={
+                                rangoVinculadoAReprogramacion ||
+                                rangoYaIniciado
+                              }
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -857,12 +993,12 @@ export function RegistroVacaciones() {
                   </CardContent>
                 </Card>
 
-                {/* Adelanto de Vacaciones */}
-                <AdelantoVacaciones
-                  empleado={empleadoSeleccionado}
-                  cronograma={selectedCronograma}
-                  onAdelantoAgregado={handleCronogramaActualizado}
-                />
+                <Alert className="border-amber-200 bg-amber-50">
+                  <AlertTriangle className="h-4 w-4 text-amber-700" />
+                  <AlertDescription className="text-amber-800">
+                    El adelanto de vacaciones se encuentra desactivado temporalmente.
+                  </AlertDescription>
+                </Alert>
                 <Card className="bg-indigo-50 border-indigo-200">
                   <CardHeader>
                     <CardTitle className="text-indigo-900 text-sm">
