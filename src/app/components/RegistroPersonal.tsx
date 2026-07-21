@@ -53,6 +53,37 @@ export function RegistroPersonal() {
 
   const { isAuthenticated } = useAuth();
 
+  const parseExcelDateValue = (value: unknown): string => {
+    if (value === null || value === undefined) return "";
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      const date = new Date(Date.UTC(1899, 11, 30));
+      date.setUTCDate(date.getUTCDate() + value);
+      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+    }
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) return "";
+
+      if (/^\d+$/.test(trimmed)) {
+        const serial = Number(trimmed);
+        if (Number.isFinite(serial)) {
+          const date = new Date(Date.UTC(1899, 11, 30));
+          date.setUTCDate(date.getUTCDate() + serial);
+          return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+        }
+      }
+
+      const parsed = new Date(trimmed);
+      if (!Number.isNaN(parsed.getTime())) {
+        return `${parsed.getUTCFullYear()}-${String(parsed.getUTCMonth() + 1).padStart(2, "0")}-${String(parsed.getUTCDate()).padStart(2, "0")}`;
+      }
+    }
+
+    return String(value).trim();
+  };
+
   useEffect(() => {
     // Cargar personal desde backend si está autenticado
     async function load() {
@@ -173,89 +204,140 @@ export function RegistroPersonal() {
     toast.success("Personal exportado a JSON");
   };
 
-  const handleImportExcelPersonal = (
+  const handleImportExcelPersonal = async (
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const file = e.target.files && e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const data = new Uint8Array(reader.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-        const nuevos: any[] = rows.map((r, idx) => {
-          const get = (keys: string[]) => {
-            for (const k of keys) {
-              if (
-                r[k] !== undefined &&
-                r[k] !== null &&
-                String(r[k]).trim() !== ""
-              )
-                return String(r[k]).trim();
+    try {
+      const data = new Uint8Array(await file.arrayBuffer());
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+      const importados: Personal[] = [];
+      let cronogramasCreados = 0;
+
+      for (const row of rows) {
+        const get = (keys: string[]) => {
+          for (const k of keys) {
+            if (
+              row[k] !== undefined &&
+              row[k] !== null &&
+              String(row[k]).trim() !== ""
+            ) {
+              return String(row[k]).trim();
             }
-            return "";
-          };
-          const nombre = get([
-            "nombre",
-            "Nombre",
-            "NOMBRE",
-            "firstName",
-            "FirstName",
-          ]);
-          const apellido = get([
-            "apellido",
-            "Apellido",
-            "APELLIDO",
-            "lastName",
-            "LastName",
-          ]);
-          const fechaIngreso = get([
-            "fechaIngreso",
-            "fecha_ingreso",
-            "FechaIngreso",
-            "Fecha de Ingreso",
-            "fecha de ingreso",
-          ]);
-          const dni = get(["dni", "DNI"]);
-          const regimen_laboral = get([
-            "regimen_laboral",
-            "RegimenLaboral",
-            "Regimen Laboral",
-            "régimen laboral",
-          ]);
-          const ue = get(["ue", "UE", "u.e.", "U.E."]);
-          const dependencia = get([
-            "dependencia",
-            "Dependencia",
-            "DEPENDENCIA",
-          ]);
-          const email = get(["email", "Email", "EMAIL"]);
-          const id = get(["id", "ID"]) || generateUuid();
-          return {
-            id,
-            dni,
-            nombre,
-            apellido,
-            regimen_laboral,
-            ue,
-            dependencia,
-            email,
-            fechaIngreso,
-          };
+          }
+          return "";
+        };
+
+        const nombre = get([
+          "nombre",
+          "Nombre",
+          "NOMBRE",
+          "firstName",
+          "FirstName",
+        ]);
+        const apellido = get([
+          "apellido",
+          "Apellido",
+          "APELLIDO",
+          "lastName",
+          "LastName",
+        ]);
+        const fechaIngresoRaw = get([
+          "fechaIngreso",
+          "fecha_ingreso",
+          "FechaIngreso",
+          "Fecha de Ingreso",
+          "fecha de ingreso",
+        ]);
+        const fechaIngreso = parseExcelDateValue(fechaIngresoRaw);
+        const dni = get(["dni", "DNI"]);
+        const regimen_laboral = get([
+          "regimen_laboral",
+          "RegimenLaboral",
+          "Regimen Laboral",
+          "régimen laboral",
+        ]);
+        const ue = get(["ue", "UE", "u.e.", "U.E."]);
+        const dependencia = get([
+          "dependencia",
+          "Dependencia",
+          "DEPENDENCIA",
+        ]);
+        const email = get(["email", "Email", "EMAIL"]);
+
+        if (!nombre || !apellido || !dni || !fechaIngreso) {
+          continue;
+        }
+
+        const id = get(["id", "ID"]) || generateUuid();
+        const personalImportado: Personal = {
+          id,
+          dni,
+          nombre,
+          apellido,
+          regimen_laboral,
+          ue,
+          dependencia,
+          email,
+          fechaIngreso,
+        };
+
+        const payload = {
+          id: personalImportado.id,
+          dni: personalImportado.dni,
+          nombre: personalImportado.nombre,
+          apellido: personalImportado.apellido,
+          regimen_laboral: personalImportado.regimen_laboral,
+          ue: personalImportado.ue,
+          dependencia: personalImportado.dependencia,
+          email: personalImportado.email,
+          fechaIngreso: personalImportado.fechaIngreso,
+        };
+
+        await apiFetch("/api/personal", {
+          method: "POST",
+          body: JSON.stringify(payload),
         });
 
-        localStorage.setItem("personal", JSON.stringify(nuevos));
-        setPersonal(nuevos);
-        toast.success("Personal importado desde Excel");
-      } catch (err) {
-        toast.error("Error al leer el archivo Excel");
+        const cronogramasIniciales = generarCronogramasVacacionales(
+          personalImportado.fechaIngreso,
+          personalImportado.id,
+        );
+
+        for (const cronograma of cronogramasIniciales) {
+          await apiFetch("/api/schedules", {
+            method: "POST",
+            body: JSON.stringify(cronograma),
+          });
+        }
+
+        importados.push(personalImportado);
+        cronogramasCreados += cronogramasIniciales.length;
       }
-    };
-    reader.readAsArrayBuffer(file);
+
+      if (importados.length > 0) {
+        setPersonal((prev) => {
+          const next = [...prev, ...importados];
+          localStorage.setItem("personal", JSON.stringify(next));
+          return next;
+        });
+      }
+
+      toast.success(
+        importados.length > 0
+          ? `Se importaron ${importados.length} empleados y se crearon ${cronogramasCreados} cronogramas.`
+          : "No se encontraron registros válidos para importar",
+      );
+    } catch (err) {
+      toast.error("Error al importar el archivo Excel");
+    }
+
     e.currentTarget.value = "";
   };
   
