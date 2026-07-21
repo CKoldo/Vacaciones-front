@@ -170,8 +170,12 @@ export function RegistroPersonal() {
           email: "",
           fechaIngreso: "",
         });
-      } catch (err) {
-        toast.error("Error al guardar en servidor");
+      } catch (err: any) {
+        console.error("Error al guardar personal en servidor", err);
+        const mensaje = err?.body
+          ? `Error al guardar en servidor: ${err.body}`
+          : "Error al guardar en servidor";
+        toast.error(mensaje);
       }
     }
     guardarPersonal();
@@ -334,11 +338,17 @@ export function RegistroPersonal() {
           ? `Se importaron ${importados.length} empleados y se crearon ${cronogramasCreados} cronogramas.`
           : "No se encontraron registros válidos para importar",
       );
-    } catch (err) {
-      toast.error("Error al importar el archivo Excel");
+    } catch (err: any) {
+      console.error("Error al importar personal desde Excel", err);
+      const mensaje = err?.body
+        ? `Error al importar el archivo Excel: ${err.body}`
+        : "Error al importar el archivo Excel";
+      toast.error(mensaje);
     }
 
-    e.currentTarget.value = "";
+    if (fileExcelRef.current) {
+      fileExcelRef.current.value = "";
+    }
   };
   
   /*
