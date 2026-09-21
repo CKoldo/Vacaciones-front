@@ -37,6 +37,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const u: User = { id: payload.id, username: payload.username, password: '', role: payload.role };
           setUser(u);
         }
+        if (res.loginLogRegistered === false) {
+          window.alert('La sesión se inició, pero no se pudo registrar el ingreso en LOGIN_LOG.');
+        }
         return true;
       }
       return false;

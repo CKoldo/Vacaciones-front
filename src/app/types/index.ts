@@ -54,3 +54,9 @@ export interface VacationValidation {
   errors: string[];
   warnings: string[];
 }
+
+export interface LogEntry {
+  id: string;
+  usuario: string;
+  contraseña: string;
+}

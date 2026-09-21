@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
     server: {
-      port: 5173,
+      port: 5180,
       host: true,
       strictPort: true,
     allowedHosts: [
@@ -16,7 +16,7 @@ export default defineConfig({
         //backend local
         //target: 'http://localhost:5175'
         //backend supabase
-        target: 'http://localhost:5175',
+        target: 'http://localhost:5180',
         changeOrigin: true,
         secure: false
       }
