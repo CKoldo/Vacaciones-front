@@ -1,8 +1,5 @@
 
   # Modulo de registro de vacaciones
-
-  This is a code bundle for Modulo de registro de vacaciones. The original project is available at https://www.figma.com/design/VyRH2OBF8zRJlHx1GRSNXz/Modulo-de-registro-de-vacaciones.
-
   ## Modulos principales
 
   - **Registro de Personal:** administra los datos maestros de colaboradores y sus fechas de ingreso para calcular periodos vacacionales.
